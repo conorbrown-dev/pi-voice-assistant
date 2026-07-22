@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pi-voice-assistant"
+version = "0.1.0"
+description = "Offline-first todo and reminder voice assistant for Raspberry Pi"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+voice = ["vosk>=0.3.45", "sounddevice>=0.4.6"]
+
+[project.scripts]
+pi-assistant = "pi_voice_assistant.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

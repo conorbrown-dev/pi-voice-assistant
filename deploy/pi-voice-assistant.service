@@ -1,0 +1,16 @@
+[Unit]
+Description=Pi Voice Assistant
+After=sound.target network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/pi-voice-assistant
+Environment=VOSK_MODEL_PATH=/home/pi/models/vosk-model-small-en-us-0.15
+ExecStart=/home/pi/pi-voice-assistant/.venv/bin/pi-assistant
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
