@@ -34,11 +34,11 @@ export VOSK_MODEL_PATH=/home/pi/models/vosk-model-en-us-0.22-lgraph
 pi-assistant
 ```
 
-Piper is the default local neural voice engine. This repository includes the `en_GB-alba-medium` model and its required `.onnx.json` configuration file; it keeps the model loaded and plays generated audio with `aplay`. Select another model with `--piper-model /path/to/voice.onnx`; place its matching `/path/to/voice.onnx.json` alongside it. Test the audio route with `speaker-test -t wav -c 2`. The Vosk adapter selects the first USB microphone by default and uses its advertised sample rate; pass `--device N` after checking `python -m sounddevice` if required. If a microphone needs an explicit rate, use `--sample-rate 48000`. You can use `--text` to run without microphone hardware during setup.
+Piper is the default local neural voice engine. This repository includes the `en_GB-alba-medium` model and its required `.onnx.json` configuration file; it keeps the model loaded and plays generated audio with `aplay`. Select another model with `--piper-model /path/to/voice.onnx`; place its matching `/path/to/voice.onnx.json` alongside it. If ALSA's default output is misconfigured, route Piper directly to the headphone jack with `--audio-device sysdefault:CARD=Headphones`. Test that route with `speaker-test -D sysdefault:CARD=Headphones -t wav -c 2`. The Vosk adapter selects the first USB microphone by default and uses its advertised sample rate; pass `--device N` after checking `python -m sounddevice` if required. If a microphone needs an explicit rate, use `--sample-rate 48000`. You can use `--text` to run without microphone hardware during setup.
 
 ## Wake word
 
-The assistant listens for `Computer` by default. Say `Computer, list commands`, or say `Computer` and give the command within eight seconds. Configure a different word with `--wake-word "Jarvis"` or set `PI_ASSISTANT_WAKE_WORD` for a service. To accept every recognized phrase without a wake word, start with `--wake-word ""`.
+The assistant listens for `Computer` by default. Say `Computer, list commands`, or say `Computer` and give the command within 20 seconds. Configure a different word with `--wake-word "Jarvis"` or set `PI_ASSISTANT_WAKE_WORD` for a service. Change the delay with `--wake-timeout 30`. To accept every recognized phrase without a wake word, start with `--wake-word ""`.
 
 If a spoken command is not recognized, run `pi-assistant --show-transcript` and use the displayed `Heard:` text to confirm what the microphone and Vosk model decoded. `list command` (singular), `list commands`, and `what are the commands` all open the command list.
 

@@ -35,7 +35,7 @@ class EspeakSpeaker(Speaker):
 class PiperSpeaker(Speaker):
     """Local neural speech using a downloaded Piper .onnx voice model."""
 
-    def __init__(self, model_path: Path) -> None:
+    def __init__(self, model_path: Path, audio_device: str | None = None) -> None:
         if not model_path.is_file():
             raise RuntimeError(
                 f"Piper voice model not found: {model_path}. "
@@ -49,6 +49,7 @@ class PiperSpeaker(Speaker):
         except ImportError as error:
             raise RuntimeError("Install Piper: pip install -e '.[piper]'") from error
         self.voice = PiperVoice.load(str(model_path))
+        self.audio_device = audio_device
 
     def say(self, text: str) -> None:
         if not shutil.which("aplay"):
@@ -57,7 +58,11 @@ class PiperSpeaker(Speaker):
             with wave.open(audio_file, "wb") as wav_file:
                 self.voice.synthesize_wav(text, wav_file)
             audio_file.flush()
-            subprocess.run(["aplay", "-q", audio_file.name], check=True)
+            command = ["aplay", "-q"]
+            if self.audio_device:
+                command.extend(["-D", self.audio_device])
+            command.append(audio_file.name)
+            subprocess.run(command, check=True)
 
 
 class Listener(ABC):

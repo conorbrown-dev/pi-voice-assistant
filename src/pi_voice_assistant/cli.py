@@ -36,6 +36,12 @@ def main() -> None:
         default=os.environ.get("PI_ASSISTANT_WAKE_WORD", "Computer"),
         help='Wake word required before a command; use "" to disable (default: Computer)',
     )
+    parser.add_argument(
+        "--wake-timeout",
+        type=int,
+        default=20,
+        help="Seconds to wait for a command after the wake word (default: 20)",
+    )
     parser.add_argument("--tts", choices=("piper", "espeak"), default="piper", help="Speech engine (default: piper)")
     parser.add_argument(
         "--piper-model",
@@ -48,15 +54,20 @@ def main() -> None:
         ),
         help="Path to the Piper .onnx voice model",
     )
+    parser.add_argument(
+        "--audio-device",
+        default=os.environ.get("PI_ASSISTANT_AUDIO_DEVICE"),
+        help="ALSA output device for Piper, for example sysdefault:CARD=Headphones",
+    )
     args = parser.parse_args()
     store = Store(args.database)
     try:
         speaker: Speaker
         if args.tts == "piper":
-            speaker = PiperSpeaker(args.piper_model)
+            speaker = PiperSpeaker(args.piper_model, audio_device=args.audio_device)
         else:
             speaker = EspeakSpeaker(args.voice, args.speech_rate, args.pitch)
-        assistant = Assistant(store, wake_word=args.wake_word)
+        assistant = Assistant(store, wake_word=args.wake_word, wake_timeout_seconds=args.wake_timeout)
         listener = TextListener() if args.text else VoskListener(args.device, args.sample_rate)
         greeting = startup_greeting()
         print(f"Assistant: {greeting}")

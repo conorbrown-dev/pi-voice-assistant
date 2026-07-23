@@ -21,6 +21,9 @@ HELP = (
 
 def parse(text: str, now: datetime) -> Command:
     raw_phrase = " ".join(text.strip().split())
+    # Speech recognition often separates the compound word "todo" into
+    # "to do" (or hears "two do"). Treat those as the command keyword.
+    raw_phrase = re.sub(r"\b(?:to|two)\s+do\b", "todo", raw_phrase, flags=re.IGNORECASE)
     # Vosk transcripts do not include punctuation consistently and sometimes
     # hear the final "s" in "commands" as singular.  Normalize those
     # presentation differences before matching fixed commands.
@@ -38,6 +41,9 @@ def parse(text: str, now: datetime) -> Command:
     if phrase in {"list todo", "list todos", "list todo items", "list my todos"}:
         return Command("list_todos")
     match = re.fullmatch(r"(?:add )?todo(?: item)?(?: called)? (.+)", raw_phrase, re.IGNORECASE)
+    if match:
+        return Command("add_todo", match.group(1))
+    match = re.fullmatch(r"do (.+)", raw_phrase, re.IGNORECASE)
     if match:
         return Command("add_todo", match.group(1))
     match = re.fullmatch(r"(?:archive|remove|complete) todo(?: item)? (.+)", raw_phrase, re.IGNORECASE)

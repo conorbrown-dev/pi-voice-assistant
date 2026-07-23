@@ -28,6 +28,12 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual(self.assistant.handle("archive todo buy milk", self.now), "Archived todo: buy milk.")
         self.assertEqual(self.assistant.handle("list todo", self.now), "You have no active todos.")
 
+    def test_do_phrase_adds_a_todo(self) -> None:
+        self.assertEqual(self.assistant.handle("do buy milk", self.now), "Added todo: buy milk.")
+
+    def test_spaced_todo_is_normalized(self) -> None:
+        self.assertEqual(self.assistant.handle("add to do buy milk", self.now), "Added todo: buy milk.")
+
     def test_reminder_can_complete(self) -> None:
         reply = self.assistant.handle("remind me to call Sam in 10 minutes", self.now)
         self.assertIn("Reminder set", reply)
@@ -60,7 +66,7 @@ class AssistantTests(unittest.TestCase):
         self.assertIn("You can say", assistant.handle("Computer, list commands", self.now))
         self.assertIn("You can say", assistant.handle("Computer and list commands", self.now))
         self.assertIsNone(assistant.handle("Computer", self.now))
-        self.assertIn("You can say", assistant.handle("list commands", self.now + timedelta(seconds=7)))
+        self.assertIn("You can say", assistant.handle("list commands", self.now + timedelta(seconds=19)))
 
     def test_startup_greeting_uses_local_time_of_day(self) -> None:
         self.assertEqual(startup_greeting(datetime(2026, 7, 22, 9, 0)), "Good morning, let me know what I can do for you today.")

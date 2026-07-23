@@ -9,7 +9,7 @@ from .storage import Store
 
 
 class Assistant:
-    def __init__(self, store: Store, wake_word: str | None = None, wake_timeout_seconds: int = 8) -> None:
+    def __init__(self, store: Store, wake_word: str | None = None, wake_timeout_seconds: int = 20) -> None:
         self.store = store
         self.store.requeue_announced_reminders()
         self.awaiting_reminder: Reminder | None = None
