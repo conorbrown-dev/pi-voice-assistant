@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from pi_voice_assistant.assistant import Assistant
+from pi_voice_assistant.cli import startup_greeting
 from pi_voice_assistant.commands import parse
 from pi_voice_assistant.storage import Store
 
@@ -60,6 +61,11 @@ class AssistantTests(unittest.TestCase):
         self.assertIn("You can say", assistant.handle("Computer and list commands", self.now))
         self.assertIsNone(assistant.handle("Computer", self.now))
         self.assertIn("You can say", assistant.handle("list commands", self.now + timedelta(seconds=7)))
+
+    def test_startup_greeting_uses_local_time_of_day(self) -> None:
+        self.assertEqual(startup_greeting(datetime(2026, 7, 22, 9, 0)), "Good morning, let me know what I can do for you today.")
+        self.assertEqual(startup_greeting(datetime(2026, 7, 22, 13, 0)), "Good afternoon, let me know what I can do for you today.")
+        self.assertEqual(startup_greeting(datetime(2026, 7, 22, 19, 0)), "Good evening, let me know what I can do for you today.")
 
 
 if __name__ == "__main__":

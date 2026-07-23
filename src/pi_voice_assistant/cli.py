@@ -4,6 +4,7 @@ import argparse
 import os
 import queue
 import time
+from datetime import datetime
 from pathlib import Path
 
 from .assistant import Assistant
@@ -12,6 +13,12 @@ from .storage import Store
 
 
 DEFAULT_PIPER_MODEL = Path(__file__).resolve().parents[2] / "en_GB-alba-medium.onnx"
+
+
+def startup_greeting(now: datetime | None = None) -> str:
+    hour = (now or datetime.now()).hour
+    time_of_day = "morning" if hour < 12 else "afternoon" if hour < 18 else "evening"
+    return f"Good {time_of_day}, let me know what I can do for you today."
 
 
 def main() -> None:
@@ -51,7 +58,9 @@ def main() -> None:
             speaker = EspeakSpeaker(args.voice, args.speech_rate, args.pitch)
         assistant = Assistant(store, wake_word=args.wake_word)
         listener = TextListener() if args.text else VoskListener(args.device, args.sample_rate)
-        speaker.say("Pi assistant ready. Say list commands for help.")
+        greeting = startup_greeting()
+        print(f"Assistant: {greeting}")
+        speaker.say(greeting)
         while True:
             for message in assistant.check_reminders():
                 speaker.say(message)
