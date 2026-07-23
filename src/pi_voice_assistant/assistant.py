@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 
 from .commands import HELP, parse
@@ -8,13 +9,19 @@ from .storage import Store
 
 
 class Assistant:
-    def __init__(self, store: Store) -> None:
+    def __init__(self, store: Store, wake_word: str | None = None, wake_timeout_seconds: int = 8) -> None:
         self.store = store
         self.store.requeue_announced_reminders()
         self.awaiting_reminder: Reminder | None = None
+        self.wake_word = " ".join((wake_word or "").lower().split()) or None
+        self.wake_timeout = timedelta(seconds=wake_timeout_seconds)
+        self.awake_until: datetime | None = None
 
-    def handle(self, spoken: str, now: datetime | None = None) -> str:
+    def handle(self, spoken: str, now: datetime | None = None) -> str | None:
         now = now or datetime.now()
+        spoken = self._command_after_wake_word(spoken, now)
+        if spoken is None:
+            return None
         command = parse(spoken, now)
         if command.kind == "help":
             return HELP
@@ -49,6 +56,23 @@ class Assistant:
             self.awaiting_reminder = None
             return f"Okay, I will remind you again in {command.minutes} minutes."
         return "I did not understand that. Say list commands to hear what I can do."
+
+    def _command_after_wake_word(self, spoken: str, now: datetime) -> str | None:
+        if not self.wake_word:
+            return spoken
+        normalized = " ".join(re.sub(r"[^a-z0-9]+", " ", spoken.lower()).split())
+        if normalized == self.wake_word:
+            self.awake_until = now + self.wake_timeout
+            return None
+        match = re.match(rf"^\s*{re.escape(self.wake_word)}(?:\s+|[,.!?]+)(.+)$", spoken, re.IGNORECASE)
+        if match:
+            self.awake_until = None
+            return match.group(1).strip()
+        if self.awake_until and now <= self.awake_until:
+            self.awake_until = None
+            return spoken
+        self.awake_until = None
+        return None
 
     def check_reminders(self, now: datetime | None = None) -> list[str]:
         now = now or datetime.now()

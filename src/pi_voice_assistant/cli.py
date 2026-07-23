@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import os
 import queue
 import time
 from pathlib import Path
 
 from .assistant import Assistant
-from .speech import EspeakSpeaker, TextListener, VoskListener
+from .speech import EspeakSpeaker, PiperSpeaker, Speaker, TextListener, VoskListener
 from .storage import Store
+
+
+DEFAULT_PIPER_MODEL = Path(__file__).resolve().parents[2] / "en_GB-alba-medium.onnx"
 
 
 def main() -> None:
@@ -17,10 +21,35 @@ def main() -> None:
     parser.add_argument("--device", type=int, help="sounddevice input device index")
     parser.add_argument("--sample-rate", type=int, help="Microphone sample rate; defaults to the device's advertised rate")
     parser.add_argument("--show-transcript", action="store_true", help="Print each recognized phrase for microphone troubleshooting")
+    parser.add_argument("--voice", default="en-us", help="eSpeak NG voice name (default: en-us)")
+    parser.add_argument("--speech-rate", type=int, default=145, help="Speech speed in words per minute (default: 145)")
+    parser.add_argument("--pitch", type=int, default=45, help="Speech pitch from 0 to 99 (default: 45)")
+    parser.add_argument(
+        "--wake-word",
+        default=os.environ.get("PI_ASSISTANT_WAKE_WORD", "Computer"),
+        help='Wake word required before a command; use "" to disable (default: Computer)',
+    )
+    parser.add_argument("--tts", choices=("piper", "espeak"), default="piper", help="Speech engine (default: piper)")
+    parser.add_argument(
+        "--piper-model",
+        type=Path,
+        default=Path(
+            os.environ.get(
+                "PIPER_MODEL_PATH",
+                str(DEFAULT_PIPER_MODEL),
+            )
+        ),
+        help="Path to the Piper .onnx voice model",
+    )
     args = parser.parse_args()
-    store, speaker = Store(args.database), EspeakSpeaker()
+    store = Store(args.database)
     try:
-        assistant = Assistant(store)
+        speaker: Speaker
+        if args.tts == "piper":
+            speaker = PiperSpeaker(args.piper_model)
+        else:
+            speaker = EspeakSpeaker(args.voice, args.speech_rate, args.pitch)
+        assistant = Assistant(store, wake_word=args.wake_word)
         listener = TextListener() if args.text else VoskListener(args.device, args.sample_rate)
         speaker.say("Pi assistant ready. Say list commands for help.")
         while True:
@@ -33,7 +62,9 @@ def main() -> None:
             if spoken:
                 if args.show_transcript and not args.text:
                     print(f"Heard: {spoken}")
-                speaker.say(assistant.handle(spoken))
+                reply = assistant.handle(spoken)
+                if reply:
+                    speaker.say(reply)
             elif args.text:
                 break
             if args.text:

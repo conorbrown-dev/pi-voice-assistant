@@ -50,8 +50,15 @@ class AssistantTests(unittest.TestCase):
         self.assertIn("Please say a reminder", self.assistant.handle("remind me to walk later", self.now))
 
     def test_help_accepts_common_recognition_variations(self) -> None:
-        for phrase in ("list command", "List commands!", "what are the commands"):
+        for phrase in ("list command", "List commands!", "just commands", "what are the commands"):
             self.assertEqual(parse(phrase, self.now).kind, "help")
+
+    def test_wake_word_can_prefix_or_precede_a_command(self) -> None:
+        assistant = Assistant(self.store, wake_word="Computer")
+        self.assertIsNone(assistant.handle("list commands", self.now))
+        self.assertIn("You can say", assistant.handle("Computer, list commands", self.now))
+        self.assertIsNone(assistant.handle("Computer", self.now))
+        self.assertIn("You can say", assistant.handle("list commands", self.now + timedelta(seconds=7)))
 
 
 if __name__ == "__main__":

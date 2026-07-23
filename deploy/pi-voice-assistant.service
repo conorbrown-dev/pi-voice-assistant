@@ -7,10 +7,11 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/pi-voice-assistant
 Environment=VOSK_MODEL_PATH=/home/pi/models/vosk-model-small-en-us-0.15
+Environment=PIPER_MODEL_PATH=/home/pi/pi-voice-assistant/en_GB-alba-medium.onnx
+Environment=PI_ASSISTANT_WAKE_WORD=Computer
 ExecStart=/home/pi/pi-voice-assistant/.venv/bin/pi-assistant
 Restart=on-failure
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-

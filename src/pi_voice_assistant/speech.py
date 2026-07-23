@@ -5,7 +5,10 @@ import os
 import queue
 import shutil
 import subprocess
+import tempfile
+import wave
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 
 class Speaker(ABC):
@@ -14,11 +17,47 @@ class Speaker(ABC):
 
 
 class EspeakSpeaker(Speaker):
+    def __init__(self, voice: str = "en-us", rate: int = 145, pitch: int = 45) -> None:
+        self.voice = voice
+        self.rate = rate
+        self.pitch = pitch
+
     def say(self, text: str) -> None:
         if shutil.which("espeak-ng"):
-            subprocess.run(["espeak-ng", text], check=False)
+            subprocess.run(
+                ["espeak-ng", "--voice", self.voice, "--speed", str(self.rate), "--pitch", str(self.pitch), text],
+                check=False,
+            )
         else:
             print(f"Assistant: {text}")
+
+
+class PiperSpeaker(Speaker):
+    """Local neural speech using a downloaded Piper .onnx voice model."""
+
+    def __init__(self, model_path: Path) -> None:
+        if not model_path.is_file():
+            raise RuntimeError(
+                f"Piper voice model not found: {model_path}. "
+                "Install the Piper extra and download the configured voice model."
+            )
+        config_path = Path(f"{model_path}.json")
+        if not config_path.is_file():
+            raise RuntimeError(f"Piper voice config not found: {config_path}")
+        try:
+            from piper import PiperVoice
+        except ImportError as error:
+            raise RuntimeError("Install Piper: pip install -e '.[piper]'") from error
+        self.voice = PiperVoice.load(str(model_path))
+
+    def say(self, text: str) -> None:
+        if not shutil.which("aplay"):
+            raise RuntimeError("Install ALSA playback support: sudo apt install alsa-utils")
+        with tempfile.NamedTemporaryFile(suffix=".wav") as audio_file:
+            with wave.open(audio_file, "wb") as wav_file:
+                self.voice.synthesize_wav(text, wav_file)
+            audio_file.flush()
+            subprocess.run(["aplay", "-q", audio_file.name], check=False)
 
 
 class Listener(ABC):

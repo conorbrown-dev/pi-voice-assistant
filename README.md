@@ -21,10 +21,10 @@ Use Raspberry Pi OS Bookworm or later and Python 3.11+.
 
 ```bash
 sudo apt update
-sudo apt install -y python3-venv espeak-ng portaudio19-dev
+sudo apt install -y python3-venv portaudio19-dev alsa-utils
 python3 -m venv .venv
 . .venv/bin/activate
-pip install -e '.[voice]'
+pip install -e '.[voice,piper]'
 ```
 
 Download a small English Vosk model and unpack it somewhere on the Pi, then point the assistant to it:
@@ -34,9 +34,15 @@ export VOSK_MODEL_PATH=/home/pi/models/vosk-model-small-en-us-0.15
 pi-assistant
 ```
 
-`espeak-ng` is used to speak replies. The Vosk adapter selects the first USB microphone by default and uses its advertised sample rate; pass `--device N` after checking `python -m sounddevice` if required. If a microphone needs an explicit rate, use `--sample-rate 48000`. You can use `--text` to run without microphone hardware during setup.
+Piper is the default local neural voice engine. This repository includes the `en_GB-alba-medium` model and its required `.onnx.json` configuration file; it keeps the model loaded and plays generated audio with `aplay`. Select another model with `--piper-model /path/to/voice.onnx`; place its matching `/path/to/voice.onnx.json` alongside it. Test the audio route with `speaker-test -t wav -c 2`. The Vosk adapter selects the first USB microphone by default and uses its advertised sample rate; pass `--device N` after checking `python -m sounddevice` if required. If a microphone needs an explicit rate, use `--sample-rate 48000`. You can use `--text` to run without microphone hardware during setup.
+
+## Wake word
+
+The assistant listens for `Computer` by default. Say `Computer, list commands`, or say `Computer` and give the command within eight seconds. Configure a different word with `--wake-word "Jarvis"` or set `PI_ASSISTANT_WAKE_WORD` for a service. To accept every recognized phrase without a wake word, start with `--wake-word ""`.
 
 If a spoken command is not recognized, run `pi-assistant --show-transcript` and use the displayed `Heard:` text to confirm what the microphone and Vosk model decoded. `list command` (singular), `list commands`, and `what are the commands` all open the command list.
+
+To use the former eSpeak engine instead, start with `pi-assistant --tts espeak --speech-rate 125 --pitch 40`. Piper voice samples and additional voice names are available from the official project.
 
 ```bash
 pi-assistant --text
@@ -46,7 +52,7 @@ All state is stored locally at `~/.local/share/pi-voice-assistant/assistant.db` 
 
 ## Run at boot (systemd)
 
-Copy and adjust the bundled service (especially `User`, `WorkingDirectory`, and `VOSK_MODEL_PATH`):
+Copy and adjust the bundled service (especially `User`, `WorkingDirectory`, `VOSK_MODEL_PATH`, and the Piper model path):
 
 ```bash
 sudo cp deploy/pi-voice-assistant.service /etc/systemd/system/

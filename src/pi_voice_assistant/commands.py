@@ -28,6 +28,7 @@ def parse(text: str, now: datetime) -> Command:
     if phrase in {
         "list command",
         "list commands",
+        "just commands",
         "help",
         "what can i say",
         "what are the commands",
