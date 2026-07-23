@@ -36,6 +36,8 @@ pi-assistant
 
 `espeak-ng` is used to speak replies. The Vosk adapter selects the first USB microphone by default and uses its advertised sample rate; pass `--device N` after checking `python -m sounddevice` if required. If a microphone needs an explicit rate, use `--sample-rate 48000`. You can use `--text` to run without microphone hardware during setup.
 
+If a spoken command is not recognized, run `pi-assistant --show-transcript` and use the displayed `Heard:` text to confirm what the microphone and Vosk model decoded. `list command` (singular), `list commands`, and `what are the commands` all open the command list.
+
 ```bash
 pi-assistant --text
 ```

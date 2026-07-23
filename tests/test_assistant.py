@@ -49,6 +49,10 @@ class AssistantTests(unittest.TestCase):
     def test_invalid_reminder_explains_format(self) -> None:
         self.assertIn("Please say a reminder", self.assistant.handle("remind me to walk later", self.now))
 
+    def test_help_accepts_common_recognition_variations(self) -> None:
+        for phrase in ("list command", "List commands!", "what are the commands"):
+            self.assertEqual(parse(phrase, self.now).kind, "help")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -21,8 +21,18 @@ HELP = (
 
 def parse(text: str, now: datetime) -> Command:
     raw_phrase = " ".join(text.strip().split())
-    phrase = raw_phrase.lower()
-    if phrase in {"list commands", "help", "what can i say", "commands"}:
+    # Vosk transcripts do not include punctuation consistently and sometimes
+    # hear the final "s" in "commands" as singular.  Normalize those
+    # presentation differences before matching fixed commands.
+    phrase = re.sub(r"[^a-z0-9']+", " ", raw_phrase.lower()).strip()
+    if phrase in {
+        "list command",
+        "list commands",
+        "help",
+        "what can i say",
+        "what are the commands",
+        "commands",
+    }:
         return Command("help")
     if phrase in {"list todo", "list todos", "list todo items", "list my todos"}:
         return Command("list_todos")
