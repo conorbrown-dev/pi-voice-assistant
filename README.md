@@ -27,10 +27,10 @@ python3 -m venv .venv
 pip install -e '.[voice,piper]'
 ```
 
-Download a small English Vosk model and unpack it somewhere on the Pi, then point the assistant to it:
+Download and unpack the `vosk-model-en-us-0.22-lgraph` English Vosk model somewhere on the Pi, then point the assistant to it:
 
 ```bash
-export VOSK_MODEL_PATH=/home/pi/models/vosk-model-small-en-us-0.15
+export VOSK_MODEL_PATH=/home/pi/models/vosk-model-en-us-0.22-lgraph
 pi-assistant
 ```
 
