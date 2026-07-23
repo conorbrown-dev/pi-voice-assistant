@@ -57,7 +57,7 @@ class PiperSpeaker(Speaker):
             with wave.open(audio_file, "wb") as wav_file:
                 self.voice.synthesize_wav(text, wav_file)
             audio_file.flush()
-            subprocess.run(["aplay", "-q", audio_file.name], check=False)
+            subprocess.run(["aplay", "-q", audio_file.name], check=True)
 
 
 class Listener(ABC):

@@ -64,7 +64,10 @@ def main() -> None:
                     print(f"Heard: {spoken}")
                 reply = assistant.handle(spoken)
                 if reply:
+                    print(f"Assistant: {reply}")
                     speaker.say(reply)
+                elif args.show_transcript and not args.text:
+                    print(f'Ignored: say "{args.wake_word}" before a command.')
             elif args.text:
                 break
             if args.text:
