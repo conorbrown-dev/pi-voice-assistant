@@ -67,7 +67,11 @@ class Assistant:
         match = re.match(rf"^\s*{re.escape(self.wake_word)}(?:\s+|[,.!?]+)(.+)$", spoken, re.IGNORECASE)
         if match:
             self.awake_until = None
-            return match.group(1).strip()
+            command = match.group(1).strip()
+            # Natural speech often joins the wake word and request with
+            # "and" ("Computer and list commands"). It is not part of the
+            # command itself.
+            return re.sub(r"^(?:(?:and|please)|(?:can|could|would) you)\b[\s,]*", "", command, flags=re.IGNORECASE)
         if self.awake_until and now <= self.awake_until:
             self.awake_until = None
             return spoken

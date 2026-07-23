@@ -57,6 +57,7 @@ class AssistantTests(unittest.TestCase):
         assistant = Assistant(self.store, wake_word="Computer")
         self.assertIsNone(assistant.handle("list commands", self.now))
         self.assertIn("You can say", assistant.handle("Computer, list commands", self.now))
+        self.assertIn("You can say", assistant.handle("Computer and list commands", self.now))
         self.assertIsNone(assistant.handle("Computer", self.now))
         self.assertIn("You can say", assistant.handle("list commands", self.now + timedelta(seconds=7)))
 
