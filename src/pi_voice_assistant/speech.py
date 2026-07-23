@@ -36,7 +36,7 @@ class TextListener(Listener):
 
 class VoskListener(Listener):
     """Microphone listener; VOSK_MODEL_PATH must point to an unpacked Vosk model."""
-    def __init__(self, device: int | None = None, sample_rate: int = 16000) -> None:
+    def __init__(self, device: int | None = None, sample_rate: int | None = None) -> None:
         try:
             import sounddevice as sd
             from vosk import KaldiRecognizer, Model
@@ -45,6 +45,11 @@ class VoskListener(Listener):
         model_path = os.environ.get("VOSK_MODEL_PATH")
         if not model_path:
             raise RuntimeError("Set VOSK_MODEL_PATH to an unpacked Vosk speech model.")
+        # USB microphones commonly expose only 44.1 or 48 kHz, rather than
+        # the 16 kHz used by many speech models. Vosk accepts the stream's
+        # actual rate and resamples internally when needed.
+        if sample_rate is None:
+            sample_rate = int(sd.query_devices(device, "input")["default_samplerate"])
         self.sd, self.recognizer = sd, KaldiRecognizer(Model(model_path), sample_rate)
         self.device, self.sample_rate = device, sample_rate
 
@@ -60,4 +65,3 @@ class VoskListener(Listener):
                     result = json.loads(self.recognizer.Result()).get("text", "").strip()
                     if result:
                         return result
-

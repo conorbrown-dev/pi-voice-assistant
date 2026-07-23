@@ -15,11 +15,12 @@ def main() -> None:
     parser.add_argument("--database", type=Path, default=Path.home() / ".local/share/pi-voice-assistant/assistant.db")
     parser.add_argument("--text", action="store_true", help="Use terminal input instead of USB microphone")
     parser.add_argument("--device", type=int, help="sounddevice input device index")
+    parser.add_argument("--sample-rate", type=int, help="Microphone sample rate; defaults to the device's advertised rate")
     args = parser.parse_args()
     store, speaker = Store(args.database), EspeakSpeaker()
     try:
         assistant = Assistant(store)
-        listener = TextListener() if args.text else VoskListener(args.device)
+        listener = TextListener() if args.text else VoskListener(args.device, args.sample_rate)
         speaker.say("Pi assistant ready. Say list commands for help.")
         while True:
             for message in assistant.check_reminders():

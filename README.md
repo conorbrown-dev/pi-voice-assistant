@@ -34,7 +34,7 @@ export VOSK_MODEL_PATH=/home/pi/models/vosk-model-small-en-us-0.15
 pi-assistant
 ```
 
-`espeak-ng` is used to speak replies. The Vosk adapter selects the first USB microphone by default; pass `--device N` after checking `python -m sounddevice` if required. You can use `--text` to run without microphone hardware during setup.
+`espeak-ng` is used to speak replies. The Vosk adapter selects the first USB microphone by default and uses its advertised sample rate; pass `--device N` after checking `python -m sounddevice` if required. If a microphone needs an explicit rate, use `--sample-rate 48000`. You can use `--text` to run without microphone hardware during setup.
 
 ```bash
 pi-assistant --text
@@ -57,4 +57,3 @@ sudo systemctl enable --now pi-voice-assistant
 ```bash
 python -m unittest discover -s tests -v
 ```
-
