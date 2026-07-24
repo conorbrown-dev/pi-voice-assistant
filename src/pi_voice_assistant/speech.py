@@ -9,6 +9,7 @@ import tempfile
 import wave
 from abc import ABC, abstractmethod
 from array import array
+from collections import deque
 from math import isqrt
 from pathlib import Path
 
@@ -89,7 +90,8 @@ class WhisperListener(Listener):
         sample_rate: int | None,
         model_path: Path,
         binary: str = "whisper-cli",
-        speech_threshold: int = 400,
+        speech_threshold: int = 100,
+        show_audio_level: bool = False,
     ) -> None:
         try:
             import sounddevice as sd
@@ -107,6 +109,7 @@ class WhisperListener(Listener):
         self.model_path = model_path
         self.binary = binary
         self.speech_threshold = speech_threshold
+        self.show_audio_level = show_audio_level
 
     def listen(self, timeout: float | None = None) -> str | None:
         audio: queue.Queue[bytes] = queue.Queue()
@@ -117,19 +120,29 @@ class WhisperListener(Listener):
 
         silence_frames = int(self.sample_rate * 1.2)
         maximum_frames = int(self.sample_rate * 12)
+        pre_roll: deque[bytes] = deque(maxlen=max(1, int(self.sample_rate * 0.4) // 8000))
         recorded: list[bytes] = []
         silent_frames = 0
+        frames = 0
         with self.sd.RawInputStream(samplerate=self.sample_rate, blocksize=8000, device=self.device,
                                     dtype="int16", channels=1, callback=callback):
             while True:
                 data = audio.get(timeout=timeout if not recorded else None)
                 level = _rms_int16(data)
                 if not recorded and level < self.speech_threshold:
+                    pre_roll.append(data)
                     continue
+                if not recorded:
+                    recorded.extend(pre_roll)
+                    frames = sum(len(chunk) // 2 for chunk in recorded)
+                    if self.show_audio_level:
+                        print(f"Capture started (input level: {level}).")
                 recorded.append(data)
+                frames += len(data) // 2
                 silent_frames = silent_frames + len(data) // 2 if level < self.speech_threshold else 0
-                frames = sum(len(chunk) // 2 for chunk in recorded)
                 if silent_frames >= silence_frames or frames >= maximum_frames:
+                    if self.show_audio_level:
+                        print(f"Captured {frames / self.sample_rate:.1f} seconds of audio.")
                     return self._transcribe(b"".join(recorded))
 
     def _transcribe(self, audio: bytes) -> str | None:
