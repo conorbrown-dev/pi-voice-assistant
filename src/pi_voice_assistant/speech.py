@@ -92,6 +92,7 @@ class WhisperListener(Listener):
         binary: str = "whisper-cli",
         speech_threshold: int = 100,
         show_audio_level: bool = False,
+        prompt: str = "Computer. Add todo. List todos. Archive todo. Remind me to.",
     ) -> None:
         try:
             import sounddevice as sd
@@ -110,6 +111,7 @@ class WhisperListener(Listener):
         self.binary = binary
         self.speech_threshold = speech_threshold
         self.show_audio_level = show_audio_level
+        self.prompt = prompt
 
     def listen(self, timeout: float | None = None) -> str | None:
         audio: queue.Queue[bytes] = queue.Queue()
@@ -149,13 +151,14 @@ class WhisperListener(Listener):
         with tempfile.TemporaryDirectory() as directory:
             input_path = Path(directory) / "utterance.wav"
             output_path = Path(directory) / "transcript"
+            whisper_audio = _resample_int16(audio, self.sample_rate, 16000)
             with wave.open(str(input_path), "wb") as wav_file:
                 wav_file.setnchannels(1)
                 wav_file.setsampwidth(2)
-                wav_file.setframerate(self.sample_rate)
-                wav_file.writeframes(audio)
+                wav_file.setframerate(16000)
+                wav_file.writeframes(whisper_audio)
             result = subprocess.run(
-                [self.binary, "-m", str(self.model_path), "-f", str(input_path), "-l", "en", "-nt", "-np", "-otxt", "-of", str(output_path)],
+                [self.binary, "-m", str(self.model_path), "-f", str(input_path), "-l", "en", "--prompt", self.prompt, "-nt", "-np", "-otxt", "-of", str(output_path)],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -173,6 +176,26 @@ def _rms_int16(audio: bytes) -> int:
     if not samples:
         return 0
     return isqrt(sum(sample * sample for sample in samples) // len(samples))
+
+
+def _resample_int16(audio: bytes, source_rate: int, target_rate: int) -> bytes:
+    """Linearly resample mono, signed 16-bit PCM without external tooling."""
+    if source_rate == target_rate:
+        return audio
+    source = array("h")
+    source.frombytes(audio)
+    if not source:
+        return audio
+    output = array("h")
+    output_length = len(source) * target_rate // source_rate
+    for index in range(output_length):
+        position = index * source_rate
+        left = position // target_rate
+        remainder = position % target_rate
+        right = min(left + 1, len(source) - 1)
+        value = (source[left] * (target_rate - remainder) + source[right] * remainder) // target_rate
+        output.append(value)
+    return output.tobytes()
 
 
 class VoskListener(Listener):
