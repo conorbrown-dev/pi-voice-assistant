@@ -122,7 +122,6 @@ class WhisperListener(Listener):
 
     def listen(self, timeout: float | None = None) -> str | None:
         audio: queue.Queue[bytes] = queue.Queue()
-        blocksize = 2048
 
         def callback(indata, frames, time, status):  # type: ignore[no-untyped-def]
             if status and self.show_audio_level:
@@ -133,17 +132,22 @@ class WhisperListener(Listener):
 
         silence_frames = int(self.sample_rate * self.silence_seconds)
         maximum_frames = int(self.sample_rate * 12)
-        pre_roll: deque[bytes] = deque(maxlen=max(1, int(self.sample_rate * 0.4) // blocksize))
+        maximum_pre_roll_frames = int(self.sample_rate * 0.4)
+        pre_roll: deque[bytes] = deque()
+        pre_roll_frames = 0
         recorded: list[bytes] = []
         silent_frames = 0
         frames = 0
-        with self.sd.RawInputStream(samplerate=self.sample_rate, blocksize=blocksize, device=self.device,
-                                    dtype="int16", channels=1, callback=callback):
+        with self.sd.RawInputStream(samplerate=self.sample_rate, blocksize=0, device=self.device,
+                                    dtype="int16", channels=1, latency="high", callback=callback):
             while True:
                 data = audio.get(timeout=timeout if not recorded else None)
                 level = _rms_int16(data)
                 if not recorded and level < self.speech_threshold:
                     pre_roll.append(data)
+                    pre_roll_frames += len(data) // 2
+                    while len(pre_roll) > 1 and pre_roll_frames > maximum_pre_roll_frames:
+                        pre_roll_frames -= len(pre_roll.popleft()) // 2
                     continue
                 if not recorded:
                     recorded.extend(pre_roll)
