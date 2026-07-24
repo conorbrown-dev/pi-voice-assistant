@@ -34,6 +34,10 @@ class AssistantTests(unittest.TestCase):
     def test_spaced_todo_is_normalized(self) -> None:
         self.assertEqual(self.assistant.handle("add to do buy milk", self.now), "Added todo: buy milk.")
 
+    def test_whisper_punctuation_is_accepted(self) -> None:
+        assistant = Assistant(self.store, wake_word="Computer")
+        self.assertEqual(assistant.handle("Computer. Add todo. Buy milk.", self.now), "Added todo: Buy milk.")
+
     def test_reminder_can_complete(self) -> None:
         reply = self.assistant.handle("remind me to call Sam in 10 minutes", self.now)
         self.assertIn("Reminder set", reply)
