@@ -34,6 +34,7 @@ def main() -> None:
     parser.add_argument("--speech-threshold", type=int, default=100, help="Input level that starts a Whisper utterance (default: 100)")
     parser.add_argument("--show-audio-level", action="store_true", help="Print Whisper capture levels and duration")
     parser.add_argument("--whisper-prompt", default="Computer. Add todo. List todos. Archive todo. Remind me to.", help="Command-domain prompt for Whisper")
+    parser.add_argument("--save-whisper-audio", type=Path, help="Directory in which to keep the WAV sent to Whisper")
     parser.add_argument("--show-transcript", action="store_true", help="Print each recognized phrase for microphone troubleshooting")
     parser.add_argument("--voice", default="en-us", help="eSpeak NG voice name (default: en-us)")
     parser.add_argument("--speech-rate", type=int, default=145, help="Speech speed in words per minute (default: 145)")
@@ -78,8 +79,10 @@ def main() -> None:
         if args.text:
             listener = TextListener()
         elif args.stt == "whisper":
-            listener = WhisperListener(args.device, args.sample_rate, args.whisper_model, args.whisper_binary, args.speech_threshold, args.show_audio_level, args.whisper_prompt)
+            print(f"Speech recognition: Whisper ({args.whisper_model})")
+            listener = WhisperListener(args.device, args.sample_rate, args.whisper_model, args.whisper_binary, args.speech_threshold, args.show_audio_level, args.whisper_prompt, args.save_whisper_audio)
         else:
+            print("Speech recognition: Vosk")
             listener = VoskListener(args.device, args.sample_rate)
         greeting = startup_greeting()
         print(f"Assistant: {greeting}")

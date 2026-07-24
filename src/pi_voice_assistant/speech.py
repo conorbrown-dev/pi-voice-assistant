@@ -6,6 +6,7 @@ import queue
 import shutil
 import subprocess
 import tempfile
+import time
 import wave
 from abc import ABC, abstractmethod
 from array import array
@@ -93,6 +94,7 @@ class WhisperListener(Listener):
         speech_threshold: int = 100,
         show_audio_level: bool = False,
         prompt: str = "Computer. Add todo. List todos. Archive todo. Remind me to.",
+        save_audio_directory: Path | None = None,
     ) -> None:
         try:
             import sounddevice as sd
@@ -112,6 +114,7 @@ class WhisperListener(Listener):
         self.speech_threshold = speech_threshold
         self.show_audio_level = show_audio_level
         self.prompt = prompt
+        self.save_audio_directory = save_audio_directory
 
     def listen(self, timeout: float | None = None) -> str | None:
         audio: queue.Queue[bytes] = queue.Queue()
@@ -157,6 +160,11 @@ class WhisperListener(Listener):
                 wav_file.setsampwidth(2)
                 wav_file.setframerate(16000)
                 wav_file.writeframes(whisper_audio)
+            if self.save_audio_directory:
+                self.save_audio_directory.mkdir(parents=True, exist_ok=True)
+                saved_path = self.save_audio_directory / f"whisper-capture-{time.time_ns()}.wav"
+                shutil.copyfile(input_path, saved_path)
+                print(f"Saved Whisper audio: {saved_path}")
             result = subprocess.run(
                 [self.binary, "-m", str(self.model_path), "-f", str(input_path), "-l", "en", "--prompt", self.prompt, "-nt", "-np", "-otxt", "-of", str(output_path)],
                 capture_output=True,
