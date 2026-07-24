@@ -32,6 +32,8 @@ def main() -> None:
     parser.add_argument("--whisper-model", type=Path, default=Path(os.environ.get("WHISPER_MODEL_PATH", str(DEFAULT_WHISPER_MODEL))), help="Path to the whisper.cpp ggml model")
     parser.add_argument("--whisper-binary", default=os.environ.get("WHISPER_BINARY", "whisper-cli"), help="whisper.cpp executable (default: whisper-cli)")
     parser.add_argument("--speech-threshold", type=int, default=100, help="Input level that starts a Whisper utterance (default: 100)")
+    parser.add_argument("--silence-threshold", type=int, default=25, help="Input level treated as silence after speech starts (default: 25)")
+    parser.add_argument("--silence-seconds", type=float, default=1.8, help="Quiet time that ends a Whisper utterance (default: 1.8)")
     parser.add_argument("--show-audio-level", action="store_true", help="Print Whisper capture levels and duration")
     parser.add_argument("--whisper-prompt", default="Computer. Add todo. List todos. Archive todo. Remind me to.", help="Command-domain prompt for Whisper")
     parser.add_argument("--save-whisper-audio", type=Path, help="Directory in which to keep the WAV sent to Whisper")
@@ -80,7 +82,18 @@ def main() -> None:
             listener = TextListener()
         elif args.stt == "whisper":
             print(f"Speech recognition: Whisper ({args.whisper_model})")
-            listener = WhisperListener(args.device, args.sample_rate, args.whisper_model, args.whisper_binary, args.speech_threshold, args.show_audio_level, args.whisper_prompt, args.save_whisper_audio)
+            listener = WhisperListener(
+                args.device,
+                args.sample_rate,
+                args.whisper_model,
+                args.whisper_binary,
+                args.speech_threshold,
+                args.silence_threshold,
+                args.silence_seconds,
+                args.show_audio_level,
+                args.whisper_prompt,
+                args.save_whisper_audio,
+            )
         else:
             print("Speech recognition: Vosk")
             listener = VoskListener(args.device, args.sample_rate)

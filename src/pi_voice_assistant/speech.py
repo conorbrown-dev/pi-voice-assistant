@@ -92,6 +92,8 @@ class WhisperListener(Listener):
         model_path: Path,
         binary: str = "whisper-cli",
         speech_threshold: int = 100,
+        silence_threshold: int = 25,
+        silence_seconds: float = 1.8,
         show_audio_level: bool = False,
         prompt: str = "Computer. Add todo. List todos. Archive todo. Remind me to.",
         save_audio_directory: Path | None = None,
@@ -112,6 +114,8 @@ class WhisperListener(Listener):
         self.model_path = model_path
         self.binary = binary
         self.speech_threshold = speech_threshold
+        self.silence_threshold = silence_threshold
+        self.silence_seconds = silence_seconds
         self.show_audio_level = show_audio_level
         self.prompt = prompt
         self.save_audio_directory = save_audio_directory
@@ -123,7 +127,7 @@ class WhisperListener(Listener):
             if not status:
                 audio.put(bytes(indata))
 
-        silence_frames = int(self.sample_rate * 1.2)
+        silence_frames = int(self.sample_rate * self.silence_seconds)
         maximum_frames = int(self.sample_rate * 12)
         pre_roll: deque[bytes] = deque(maxlen=max(1, int(self.sample_rate * 0.4) // 8000))
         recorded: list[bytes] = []
@@ -144,10 +148,10 @@ class WhisperListener(Listener):
                         print(f"Capture started (input level: {level}).")
                 recorded.append(data)
                 frames += len(data) // 2
-                silent_frames = silent_frames + len(data) // 2 if level < self.speech_threshold else 0
+                silent_frames = silent_frames + len(data) // 2 if level < self.silence_threshold else 0
                 if silent_frames >= silence_frames or frames >= maximum_frames:
                     if self.show_audio_level:
-                        print(f"Captured {frames / self.sample_rate:.1f} seconds of audio.")
+                        print(f"Captured {frames / self.sample_rate:.1f} seconds of audio (ending level: {level}).")
                     return self._transcribe(b"".join(recorded))
 
     def _transcribe(self, audio: bytes) -> str | None:
