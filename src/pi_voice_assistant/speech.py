@@ -122,18 +122,22 @@ class WhisperListener(Listener):
 
     def listen(self, timeout: float | None = None) -> str | None:
         audio: queue.Queue[bytes] = queue.Queue()
+        blocksize = 2048
 
         def callback(indata, frames, time, status):  # type: ignore[no-untyped-def]
-            if not status:
-                audio.put(bytes(indata))
+            if status and self.show_audio_level:
+                print(f"Microphone status: {status}")
+            # A status flag can accompany usable input data. Dropping the
+            # whole block creates audible gaps and damages transcription.
+            audio.put(bytes(indata))
 
         silence_frames = int(self.sample_rate * self.silence_seconds)
         maximum_frames = int(self.sample_rate * 12)
-        pre_roll: deque[bytes] = deque(maxlen=max(1, int(self.sample_rate * 0.4) // 8000))
+        pre_roll: deque[bytes] = deque(maxlen=max(1, int(self.sample_rate * 0.4) // blocksize))
         recorded: list[bytes] = []
         silent_frames = 0
         frames = 0
-        with self.sd.RawInputStream(samplerate=self.sample_rate, blocksize=8000, device=self.device,
+        with self.sd.RawInputStream(samplerate=self.sample_rate, blocksize=blocksize, device=self.device,
                                     dtype="int16", channels=1, callback=callback):
             while True:
                 data = audio.get(timeout=timeout if not recorded else None)
@@ -232,8 +236,7 @@ class VoskListener(Listener):
     def listen(self, timeout: float | None = None) -> str | None:
         audio: queue.Queue[bytes] = queue.Queue()
         def callback(indata, frames, time, status):  # type: ignore[no-untyped-def]
-            if not status:
-                audio.put(bytes(indata))
+            audio.put(bytes(indata))
         with self.sd.RawInputStream(samplerate=self.sample_rate, blocksize=8000, device=self.device,
                                     dtype="int16", channels=1, callback=callback):
             while True:
