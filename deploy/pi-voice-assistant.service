@@ -8,8 +8,11 @@ User=pi
 WorkingDirectory=/home/pi/pi-voice-assistant
 Environment=VOSK_MODEL_PATH=/home/pi/models/vosk-model-en-us-0.22-lgraph
 Environment=PIPER_MODEL_PATH=/home/pi/pi-voice-assistant/en_GB-alba-medium.onnx
+Environment=WHISPER_MODEL_PATH=/home/pi/pi-voice-assistant/models/ggml-base.en.bin
+Environment=WHISPER_BINARY=/home/pi/pi-voice-assistant/.venv/bin/whisper-cli
+Environment=PI_ASSISTANT_AUDIO_DEVICE=sysdefault:CARD=Headphones
 Environment=PI_ASSISTANT_WAKE_WORD=Computer
-ExecStart=/home/pi/pi-voice-assistant/.venv/bin/pi-assistant
+ExecStart=/home/pi/pi-voice-assistant/.venv/bin/pi-assistant --sample-rate 44100
 Restart=on-failure
 RestartSec=5
 

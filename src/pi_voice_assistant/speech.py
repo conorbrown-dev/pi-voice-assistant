@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import wave
+from audioop import rms
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -76,6 +77,79 @@ class TextListener(Listener):
             return input("You: ").strip() or None
         except EOFError:
             return None
+
+
+class WhisperListener(Listener):
+    """Offline Whisper transcription through the whisper.cpp command-line tool."""
+
+    def __init__(
+        self,
+        device: int | None,
+        sample_rate: int | None,
+        model_path: Path,
+        binary: str = "whisper-cli",
+        speech_threshold: int = 400,
+    ) -> None:
+        try:
+            import sounddevice as sd
+        except ImportError as error:
+            raise RuntimeError("Install voice extras: pip install -e '.[voice]'") from error
+        if not model_path.is_file():
+            raise RuntimeError(f"Whisper model not found: {model_path}")
+        if not shutil.which(binary) and not Path(binary).is_file():
+            raise RuntimeError("Install whisper.cpp and make whisper-cli available on PATH.")
+        if sample_rate is None:
+            sample_rate = int(sd.query_devices(device, "input")["default_samplerate"])
+        self.sd = sd
+        self.device = device
+        self.sample_rate = sample_rate
+        self.model_path = model_path
+        self.binary = binary
+        self.speech_threshold = speech_threshold
+
+    def listen(self, timeout: float | None = None) -> str | None:
+        audio: queue.Queue[bytes] = queue.Queue()
+
+        def callback(indata, frames, time, status):  # type: ignore[no-untyped-def]
+            if not status:
+                audio.put(bytes(indata))
+
+        silence_frames = int(self.sample_rate * 1.2)
+        maximum_frames = int(self.sample_rate * 12)
+        recorded: list[bytes] = []
+        silent_frames = 0
+        with self.sd.RawInputStream(samplerate=self.sample_rate, blocksize=8000, device=self.device,
+                                    dtype="int16", channels=1, callback=callback):
+            while True:
+                data = audio.get(timeout=timeout if not recorded else None)
+                level = rms(data, 2)
+                if not recorded and level < self.speech_threshold:
+                    continue
+                recorded.append(data)
+                silent_frames = silent_frames + len(data) // 2 if level < self.speech_threshold else 0
+                frames = sum(len(chunk) // 2 for chunk in recorded)
+                if silent_frames >= silence_frames or frames >= maximum_frames:
+                    return self._transcribe(b"".join(recorded))
+
+    def _transcribe(self, audio: bytes) -> str | None:
+        with tempfile.TemporaryDirectory() as directory:
+            input_path = Path(directory) / "utterance.wav"
+            output_path = Path(directory) / "transcript"
+            with wave.open(str(input_path), "wb") as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(self.sample_rate)
+                wav_file.writeframes(audio)
+            result = subprocess.run(
+                [self.binary, "-m", str(self.model_path), "-f", str(input_path), "-l", "en", "-nt", "-np", "-otxt", "-of", str(output_path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode:
+                raise RuntimeError(f"whisper-cli failed: {result.stderr.strip() or result.stdout.strip()}")
+            transcript_path = output_path.with_suffix(".txt")
+            return transcript_path.read_text().strip() if transcript_path.is_file() else None
 
 
 class VoskListener(Listener):

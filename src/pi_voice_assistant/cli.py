@@ -8,11 +8,12 @@ from datetime import datetime
 from pathlib import Path
 
 from .assistant import Assistant
-from .speech import EspeakSpeaker, PiperSpeaker, Speaker, TextListener, VoskListener
+from .speech import EspeakSpeaker, PiperSpeaker, Speaker, TextListener, VoskListener, WhisperListener
 from .storage import Store
 
 
 DEFAULT_PIPER_MODEL = Path(__file__).resolve().parents[2] / "en_GB-alba-medium.onnx"
+DEFAULT_WHISPER_MODEL = Path(__file__).resolve().parents[2] / "models/ggml-base.en.bin"
 
 
 def startup_greeting(now: datetime | None = None) -> str:
@@ -25,8 +26,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Offline Pi voice assistant")
     parser.add_argument("--database", type=Path, default=Path.home() / ".local/share/pi-voice-assistant/assistant.db")
     parser.add_argument("--text", action="store_true", help="Use terminal input instead of USB microphone")
+    parser.add_argument("--stt", choices=("whisper", "vosk"), default="whisper", help="Speech recognition engine (default: whisper)")
     parser.add_argument("--device", type=int, help="sounddevice input device index")
     parser.add_argument("--sample-rate", type=int, help="Microphone sample rate; defaults to the device's advertised rate")
+    parser.add_argument("--whisper-model", type=Path, default=Path(os.environ.get("WHISPER_MODEL_PATH", str(DEFAULT_WHISPER_MODEL))), help="Path to the whisper.cpp ggml model")
+    parser.add_argument("--whisper-binary", default=os.environ.get("WHISPER_BINARY", "whisper-cli"), help="whisper.cpp executable (default: whisper-cli)")
+    parser.add_argument("--speech-threshold", type=int, default=400, help="Input level that starts a Whisper utterance (default: 400)")
     parser.add_argument("--show-transcript", action="store_true", help="Print each recognized phrase for microphone troubleshooting")
     parser.add_argument("--voice", default="en-us", help="eSpeak NG voice name (default: en-us)")
     parser.add_argument("--speech-rate", type=int, default=145, help="Speech speed in words per minute (default: 145)")
@@ -68,7 +73,12 @@ def main() -> None:
         else:
             speaker = EspeakSpeaker(args.voice, args.speech_rate, args.pitch)
         assistant = Assistant(store, wake_word=args.wake_word, wake_timeout_seconds=args.wake_timeout)
-        listener = TextListener() if args.text else VoskListener(args.device, args.sample_rate)
+        if args.text:
+            listener = TextListener()
+        elif args.stt == "whisper":
+            listener = WhisperListener(args.device, args.sample_rate, args.whisper_model, args.whisper_binary, args.speech_threshold)
+        else:
+            listener = VoskListener(args.device, args.sample_rate)
         greeting = startup_greeting()
         print(f"Assistant: {greeting}")
         speaker.say(greeting)
