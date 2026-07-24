@@ -7,8 +7,9 @@ import shutil
 import subprocess
 import tempfile
 import wave
-from audioop import rms
 from abc import ABC, abstractmethod
+from array import array
+from math import isqrt
 from pathlib import Path
 
 
@@ -122,7 +123,7 @@ class WhisperListener(Listener):
                                     dtype="int16", channels=1, callback=callback):
             while True:
                 data = audio.get(timeout=timeout if not recorded else None)
-                level = rms(data, 2)
+                level = _rms_int16(data)
                 if not recorded and level < self.speech_threshold:
                     continue
                 recorded.append(data)
@@ -150,6 +151,15 @@ class WhisperListener(Listener):
                 raise RuntimeError(f"whisper-cli failed: {result.stderr.strip() or result.stdout.strip()}")
             transcript_path = output_path.with_suffix(".txt")
             return transcript_path.read_text().strip() if transcript_path.is_file() else None
+
+
+def _rms_int16(audio: bytes) -> int:
+    """Return the RMS level of native little-endian signed 16-bit PCM audio."""
+    samples = array("h")
+    samples.frombytes(audio)
+    if not samples:
+        return 0
+    return isqrt(sum(sample * sample for sample in samples) // len(samples))
 
 
 class VoskListener(Listener):

@@ -34,7 +34,6 @@ git clone https://github.com/ggml-org/whisper.cpp.git ~/whisper.cpp
 cmake -S ~/whisper.cpp -B ~/whisper.cpp/build
 cmake --build ~/whisper.cpp/build --config Release
 mkdir -p models
-cp ~/whisper.cpp/build/bin/whisper-cli .venv/bin/
 sh ~/whisper.cpp/models/download-ggml-model.sh base.en
 cp ~/whisper.cpp/models/ggml-base.en.bin models/
 ```
@@ -42,7 +41,8 @@ cp ~/whisper.cpp/models/ggml-base.en.bin models/
 Run the assistant with the USB microphone's tested sample rate and direct headphone output:
 
 ```bash
-pi-assistant --sample-rate 44100 --audio-device sysdefault:CARD=Headphones
+pi-assistant --sample-rate 44100 --audio-device sysdefault:CARD=Headphones \
+  --whisper-binary ~/whisper.cpp/build/bin/whisper-cli
 ```
 
 Piper is the default local neural voice engine. This repository includes the `en_GB-alba-medium` model and its required `.onnx.json` configuration file; it keeps the model loaded and plays generated audio with `aplay`. Select another model with `--piper-model /path/to/voice.onnx`; place its matching `/path/to/voice.onnx.json` alongside it. If ALSA's default output is misconfigured, route Piper directly to the headphone jack with `--audio-device sysdefault:CARD=Headphones`. Test that route with `speaker-test -D sysdefault:CARD=Headphones -t wav -c 2`.
