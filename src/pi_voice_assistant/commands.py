@@ -24,6 +24,9 @@ def parse(text: str, now: datetime) -> Command:
     # Speech recognition often separates the compound word "todo" into
     # "to do" (or hears "two do"). Treat those as the command keyword.
     raw_phrase = re.sub(r"\b(?:to|two)\s+do\b", "todo", raw_phrase, flags=re.IGNORECASE)
+    # Whisper restores sentence punctuation, including between an intent and
+    # its task ("Add todo. Buy milk."). Keep colons intact for clock times.
+    command_phrase = " ".join(re.sub(r"[,.!?]+", " ", raw_phrase).split())
     # Vosk transcripts do not include punctuation consistently and sometimes
     # hear the final "s" in "commands" as singular.  Normalize those
     # presentation differences before matching fixed commands.
@@ -40,13 +43,13 @@ def parse(text: str, now: datetime) -> Command:
         return Command("help")
     if phrase in {"list todo", "list todos", "list todo items", "list my todos"}:
         return Command("list_todos")
-    match = re.fullmatch(r"(?:add )?todo(?: item)?(?: called)? (.+)", raw_phrase, re.IGNORECASE)
+    match = re.fullmatch(r"(?:add )?todo(?: item)?(?: called)? (.+)", command_phrase, re.IGNORECASE)
     if match:
         return Command("add_todo", match.group(1))
-    match = re.fullmatch(r"do (.+)", raw_phrase, re.IGNORECASE)
+    match = re.fullmatch(r"do (.+)", command_phrase, re.IGNORECASE)
     if match:
         return Command("add_todo", match.group(1))
-    match = re.fullmatch(r"(?:archive|remove|complete) todo(?: item)? (.+)", raw_phrase, re.IGNORECASE)
+    match = re.fullmatch(r"(?:archive|remove|complete) todo(?: item)? (.+)", command_phrase, re.IGNORECASE)
     if match:
         return Command("archive_todo", match.group(1))
     if phrase in {"done", "i'm done", "im done", "complete it", "completed"}:
@@ -54,7 +57,7 @@ def parse(text: str, now: datetime) -> Command:
     match = re.fullmatch(r"(?:delay|snooze)(?: it)? (\d+) minutes?", phrase)
     if match:
         return Command("snooze_reminder", minutes=int(match.group(1)))
-    reminder = re.fullmatch(r"(?:remind me to|set (?:a )?reminder to) (.+)", raw_phrase, re.IGNORECASE)
+    reminder = re.fullmatch(r"(?:remind me to|set (?:a )?reminder to) (.+)", command_phrase, re.IGNORECASE)
     if reminder:
         task, due_at = _parse_reminder(reminder.group(1), now)
         if task and due_at:
