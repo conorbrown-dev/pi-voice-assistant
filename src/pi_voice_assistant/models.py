@@ -19,4 +19,4 @@ class Reminder:
     due_at: datetime
     status: str
     created_at: datetime
-
+    recurrence: str | None = None

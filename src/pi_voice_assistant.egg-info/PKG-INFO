@@ -4,7 +4,9 @@ Version: 0.1.0
 Summary: Offline-first todo and reminder voice assistant for Raspberry Pi
 Requires-Python: >=3.11
 Provides-Extra: voice
-Requires-Dist: vosk>=0.3.45; extra == "voice"
 Requires-Dist: sounddevice>=0.4.6; extra == "voice"
+Provides-Extra: vosk
+Requires-Dist: vosk>=0.3.45; extra == "vosk"
+Requires-Dist: sounddevice>=0.4.6; extra == "vosk"
 Provides-Extra: piper
 Requires-Dist: piper-tts>=1.4; extra == "piper"
