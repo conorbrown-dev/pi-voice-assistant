@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+src/pi_voice_assistant/__init__.py
+src/pi_voice_assistant/assistant.py
+src/pi_voice_assistant/cli.py
+src/pi_voice_assistant/commands.py
+src/pi_voice_assistant/models.py
+src/pi_voice_assistant/speech.py
+src/pi_voice_assistant/storage.py
+src/pi_voice_assistant.egg-info/PKG-INFO
+src/pi_voice_assistant.egg-info/SOURCES.txt
+src/pi_voice_assistant.egg-info/dependency_links.txt
+src/pi_voice_assistant.egg-info/entry_points.txt
+src/pi_voice_assistant.egg-info/requires.txt
+src/pi_voice_assistant.egg-info/top_level.txt
+tests/test_assistant.py
