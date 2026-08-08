@@ -68,6 +68,13 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual(assistant.handle("call Sam", self.now), "When should I remind you about call Sam?")
         self.assertIn("Confirmed. Reminder set", assistant.handle("in 10 minutes", self.now))
 
+    def test_reminder_time_accepts_spoken_numbers(self) -> None:
+        assistant = Assistant(self.store, wake_word="Computer")
+        assistant.handle("Computer", self.now)
+        assistant.handle("add reminder", self.now)
+        assistant.handle("brush teeth", self.now)
+        self.assertIn("Confirmed. Reminder set", assistant.handle("in five minutes", self.now))
+
     def test_add_a_reminder_starts_the_multi_turn_prompt(self) -> None:
         assistant = Assistant(self.store, wake_word="Computer")
         assistant.handle("Computer", self.now)
@@ -80,8 +87,12 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual(len(due), 1)
         self.assistant.check_reminders(self.now + timedelta(hours=1))
         self.assertEqual(
-            self.assistant.handle("done", self.now + timedelta(hours=1)),
-            "Confirmed. Recurring reminder scheduled for its next occurrence.",
+            self.assistant.handle("complete reminder", self.now + timedelta(hours=1)),
+            "Which reminder would you like to complete?",
+        )
+        self.assertEqual(
+            self.assistant.handle("drink water", self.now + timedelta(hours=1)),
+            "Confirmed. Reminder occurrence completed successfully: drink water.",
         )
         self.assertEqual(len(self.store.due_reminders(self.now + timedelta(hours=2))), 1)
 
@@ -105,16 +116,53 @@ class AssistantTests(unittest.TestCase):
         reply = self.assistant.handle("remind me to call Sam in 10 minutes", self.now)
         self.assertIn("Reminder set", reply)
         messages = self.assistant.check_reminders(self.now + timedelta(minutes=10))
-        self.assertEqual(messages, ["Reminder: call Sam. Say done, or delay followed by a number of minutes."])
-        self.assertEqual(self.assistant.handle("done", self.now + timedelta(minutes=10)), "Confirmed. Reminder marked complete.")
+        self.assertEqual(
+            messages,
+            [
+                "Reminder: call Sam. To delay this reminder say delay reminder.",
+                "To complete this reminder say complete reminder.",
+            ],
+        )
+        self.assertEqual(self.assistant.handle("complete reminder", self.now + timedelta(minutes=10)), "Which reminder would you like to complete?")
+        self.assertEqual(self.assistant.handle("call Sam", self.now + timedelta(minutes=10)), "Confirmed. Reminder completed successfully: call Sam.")
         self.assertEqual(self.store.due_reminders(self.now + timedelta(days=1)), [])
+
+    def test_complete_reminder_is_a_wake_word_guided_interaction(self) -> None:
+        assistant = Assistant(self.store, wake_word="Computer")
+        self.store.add_reminder("call Sam", self.now + timedelta(minutes=10), self.now)
+        assistant.check_reminders(self.now + timedelta(minutes=10))
+        self.assertEqual(assistant.handle("Computer", self.now + timedelta(minutes=10)), "How can I help?")
+        self.assertEqual(
+            assistant.handle("complete reminder", self.now + timedelta(minutes=10)),
+            "Which reminder would you like to complete?",
+        )
+        self.assertEqual(
+            assistant.handle("Call Sam.", self.now + timedelta(minutes=10)),
+            "Confirmed. Reminder completed successfully: call Sam.",
+        )
+        self.assertEqual(assistant.check_reminders(self.now + timedelta(days=1)), [])
 
     def test_reminder_can_snooze(self) -> None:
         self.assistant.handle("remind me to stretch in 1 minute", self.now)
         self.assistant.check_reminders(self.now + timedelta(minutes=1))
         self.assertEqual(self.assistant.handle("delay 15 minutes", self.now + timedelta(minutes=1)), "Confirmed. Reminder delayed for 15 minutes.")
         self.assertEqual(self.assistant.check_reminders(self.now + timedelta(minutes=15)), [])
-        self.assertEqual(len(self.assistant.check_reminders(self.now + timedelta(minutes=16)),), 1)
+        self.assertEqual(len(self.assistant.check_reminders(self.now + timedelta(minutes=16)),), 2)
+
+    def test_delay_reminder_is_a_guided_interaction(self) -> None:
+        assistant = Assistant(self.store, wake_word="Computer")
+        self.store.add_reminder("stretch", self.now + timedelta(minutes=1), self.now)
+        assistant.check_reminders(self.now + timedelta(minutes=1))
+        self.assertEqual(
+            assistant.handle("Computer, delay reminder", self.now + timedelta(minutes=1)),
+            "How long would you like to delay this reminder?",
+        )
+        self.assertEqual(
+            assistant.handle("fifteen minutes", self.now + timedelta(minutes=1)),
+            "Confirmed. Reminder delayed successfully for 15 minutes.",
+        )
+        self.assertEqual(assistant.check_reminders(self.now + timedelta(minutes=15)), [])
+        self.assertEqual(len(assistant.check_reminders(self.now + timedelta(minutes=16)),), 2)
 
     def test_absolute_reminder_rolls_to_next_day(self) -> None:
         command = parse("remind me to feed the cat at 9 am", self.now)
@@ -130,7 +178,7 @@ class AssistantTests(unittest.TestCase):
     def test_wake_word_can_prefix_or_precede_a_command(self) -> None:
         assistant = Assistant(self.store, wake_word="Computer")
         self.assertIsNone(assistant.handle("list commands", self.now))
-        self.assertIsNone(assistant.handle("Computer, list commands", self.now))
+        self.assertIn("You can say add todo", assistant.handle("Computer, list commands", self.now))
         self.assertEqual(assistant.handle("Computer", self.now), "How can I help?")
         self.assertIn("You can say add todo", assistant.handle("list commands", self.now + timedelta(seconds=19)))
 
@@ -144,7 +192,10 @@ class AssistantTests(unittest.TestCase):
         assistant.handle("remind me to call Sam in 10 minutes", self.now)
         self.assertEqual(
             assistant.check_reminders(self.now + timedelta(minutes=10)),
-            ["Reminder: call Sam. Say Computer, then say done, or say Computer, then say delay followed by a number of minutes."],
+            [
+                "Reminder: call Sam. To delay this reminder say Computer, delay reminder.",
+                "To complete this reminder say Computer, complete reminder.",
+            ],
         )
 
     def test_startup_greeting_uses_local_time_of_day(self) -> None:

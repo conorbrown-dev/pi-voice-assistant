@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from .commands import normalize_phrase, parse, parse_reminder_schedule, parse_reminder_time, strip_punctuation
+from .commands import normalize_phrase, parse, parse_delay_minutes, parse_reminder_schedule, parse_reminder_time, strip_punctuation
 from .models import Reminder
 from .storage import Store
 
@@ -12,6 +12,8 @@ class Assistant:
         self.store = store
         self.store.requeue_announced_reminders()
         self.awaiting_reminder: Reminder | None = None
+        self.awaiting_reminder_completion = False
+        self.awaiting_reminder_delay = False
         self.awaiting_todo = False
         self.awaiting_reminder_task = False
         self.pending_reminder_text: str | None = None
@@ -27,6 +29,10 @@ class Assistant:
             return self._add_requested_todo(spoken, now)
         if self.awaiting_reminder_task or self.pending_reminder_text is not None:
             return self._add_requested_reminder(spoken, now)
+        if self.awaiting_reminder_completion:
+            return self._complete_requested_reminder(spoken, now)
+        if self.awaiting_reminder_delay:
+            return self._delay_requested_reminder(spoken, now)
         if self._is_wake_word(spoken):
             self.awake_until = now + self.wake_timeout
             return "How can I help?"
@@ -58,12 +64,14 @@ class Assistant:
             return "What should I remind you about?"
         if command.kind == "invalid_reminder":
             return f"Please say a reminder such as: {self.begin_with_wake_word('say remind me to call Sam in 10 minutes.')}"
-        if command.kind == "complete_reminder":
+        if command.kind == "complete_reminder_prompt":
+            self.awaiting_reminder_completion = True
+            return "Which reminder would you like to complete?"
+        if command.kind == "delay_reminder_prompt":
             if not self.awaiting_reminder:
-                return "There is no reminder waiting for confirmation."
-            repeats = self.store.complete_reminder(self.awaiting_reminder.id, now)
-            self.awaiting_reminder = None
-            return "Confirmed. Recurring reminder scheduled for its next occurrence." if repeats else "Confirmed. Reminder marked complete."
+                return "There is no reminder waiting to delay."
+            self.awaiting_reminder_delay = True
+            return "How long would you like to delay this reminder?"
         if command.kind == "snooze_reminder":
             if not self.awaiting_reminder:
                 return "There is no reminder waiting to delay."
@@ -87,7 +95,8 @@ class Assistant:
             "You can also say list todos, or archive todo followed by its name. "
             "The command categories are todos and reminders. "
             "A reminder can repeat every hour, every 3 hours, or every day at 7 am. "
-            "For an announced reminder, say done, or delay followed by minutes."
+            "To complete a reminder, say complete reminder, then say its name. "
+            "For an announced reminder, say delay reminder, then say how long."
         )
 
     def _add_requested_todo(self, spoken: str, now: datetime) -> str:
@@ -122,6 +131,34 @@ class Assistant:
         prefix = "Confirmed. Recurring reminder set" if recurrence else "Confirmed. Reminder set"
         return f"{prefix} for {reminder.due_at.strftime('%A')} at {clock}: {reminder.text}."
 
+    def _complete_requested_reminder(self, spoken: str, now: datetime) -> str:
+        text = strip_punctuation(spoken)
+        if not text:
+            return "I did not hear the reminder name. Which reminder would you like to complete?"
+        reminder = self.store.find_active_reminder(text)
+        if reminder is None:
+            return f"I could not find an active reminder named {text}. Which reminder would you like to complete?"
+        self.awaiting_reminder_completion = False
+        repeats = self.store.complete_reminder(reminder.id, now)
+        if self.awaiting_reminder and self.awaiting_reminder.id == reminder.id:
+            self.awaiting_reminder = None
+        if repeats:
+            return f"Confirmed. Reminder occurrence completed successfully: {strip_punctuation(reminder.text)}."
+        return f"Confirmed. Reminder completed successfully: {strip_punctuation(reminder.text)}."
+
+    def _delay_requested_reminder(self, spoken: str, now: datetime) -> str:
+        minutes = parse_delay_minutes(spoken)
+        if minutes is None or minutes <= 0:
+            return "Please say how long, for example: 10 minutes."
+        reminder = self.awaiting_reminder
+        if reminder is None:
+            self.awaiting_reminder_delay = False
+            return "There is no reminder waiting to delay."
+        self.store.snooze_reminder(reminder.id, now + timedelta(minutes=minutes))
+        self.awaiting_reminder = None
+        self.awaiting_reminder_delay = False
+        return f"Confirmed. Reminder delayed successfully for {minutes} minutes."
+
     @staticmethod
     def _todo_text(text: str) -> str:
         return strip_punctuation(text)
@@ -129,6 +166,12 @@ class Assistant:
     def _command_after_wake_word(self, spoken: str, now: datetime) -> str | None:
         if not self.wake_word:
             return spoken
+        phrase = normalize_phrase(spoken)
+        prefix = f"{self.wake_word} "
+        if phrase.startswith(prefix):
+            # Support natural one-utterance requests such as "Computer,
+            # delay reminder" as well as the wake-word-then-command flow.
+            return phrase[len(prefix):]
         if self.awake_until and now <= self.awake_until:
             self.awake_until = None
             return spoken
@@ -145,12 +188,7 @@ class Assistant:
             reminder = reminders[0]
             self.store.mark_announced(reminder.id)
             self.awaiting_reminder = reminder
-            if self.wake_word:
-                instruction = (
-                    f"Say {self.wake_word_label}, then say done, or say {self.wake_word_label}, "
-                    "then say delay followed by a number of minutes."
-                )
-            else:
-                instruction = "Say done, or delay followed by a number of minutes."
-            messages.append(f"Reminder: {strip_punctuation(reminder.text)}. {instruction}")
+            wake_prefix = f"{self.wake_word_label}, " if self.wake_word else ""
+            messages.append(f"Reminder: {strip_punctuation(reminder.text)}. To delay this reminder say {wake_prefix}delay reminder.")
+            messages.append(f"To complete this reminder say {wake_prefix}complete reminder.")
         return messages

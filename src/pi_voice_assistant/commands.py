@@ -71,11 +71,15 @@ def parse(text: str, now: datetime) -> Command:
         return Command("archive_todo", match.group(1))
     if re.fullmatch(r"(?:add|set)(?: a)? reminder", command_phrase, re.IGNORECASE):
         return Command("add_reminder_prompt")
-    if phrase in {"done", "i'm done", "im done", "complete it", "completed"}:
-        return Command("complete_reminder")
-    match = re.fullmatch(r"(?:delay|snooze)(?: it)? (\d+) minutes?", phrase)
+    if phrase in {"complete reminder", "complete a reminder"}:
+        return Command("complete_reminder_prompt")
+    if phrase in {"delay reminder", "delay this reminder", "snooze reminder"}:
+        return Command("delay_reminder_prompt")
+    match = re.fullmatch(r"(?:delay|snooze)(?: it)? (.+) minutes?", phrase)
     if match:
-        return Command("snooze_reminder", minutes=int(match.group(1)))
+        minutes = parse_spoken_number(match.group(1))
+        if minutes is not None:
+            return Command("snooze_reminder", minutes=minutes)
     reminder = re.fullmatch(r"(?:remind me to|set (?:a )?reminder to|add (?:a )?reminder(?: to)?) (.+)", command_phrase, re.IGNORECASE)
     if reminder:
         task, due_at, recurrence = _parse_reminder(reminder.group(1), now)
@@ -85,12 +89,19 @@ def parse(text: str, now: datetime) -> Command:
     return Command("unknown")
 
 
+def parse_delay_minutes(text: str) -> int | None:
+    """Parse the duration spoken after the delay-reminder prompt."""
+    phrase = normalize_phrase(text)
+    match = re.fullmatch(r"(?:(?:for|by) )?(.+?) minutes?", phrase)
+    return parse_spoken_number(match.group(1)) if match else None
+
+
 def _parse_reminder(value: str, now: datetime) -> tuple[str | None, datetime | None, str | None]:
     repeating = re.fullmatch(r"(.+?) (every .+)", value, re.IGNORECASE)
     if repeating:
         due_at, recurrence = parse_reminder_schedule(repeating.group(2), now)
         return repeating.group(1), due_at, recurrence
-    relative = re.fullmatch(r"(.+?) (in \d+ (?:minutes?|hours?))", value, re.IGNORECASE)
+    relative = re.fullmatch(r"(.+?) (in .+? (?:minutes?|hours?))", value, re.IGNORECASE)
     if relative:
         return relative.group(1), parse_reminder_time(relative.group(2), now), None
     absolute = re.fullmatch(r"(.+?) (at \d{1,2}(?:\s+\d{2})?\s*(?:am|pm)(?: tomorrow)?)", value, re.IGNORECASE)
@@ -100,9 +111,11 @@ def _parse_reminder(value: str, now: datetime) -> tuple[str | None, datetime | N
 
 
 def parse_reminder_schedule(value: str, now: datetime) -> tuple[datetime | None, str | None]:
-    interval = re.fullmatch(r"every (?:(\d+) )?(hours?|days?)", value, re.IGNORECASE)
+    interval = re.fullmatch(r"every (?:(.+?) )?(hours?|days?)", value, re.IGNORECASE)
     if interval:
-        amount = int(interval.group(1) or 1)
+        amount = parse_spoken_number(interval.group(1) or "1")
+        if amount is None:
+            return None, None
         minutes = amount * (60 if interval.group(2).lower().startswith("hour") else 24 * 60)
         return now + timedelta(minutes=minutes), json.dumps({"kind": "interval", "minutes": minutes})
     daily = re.fullmatch(r"every day at (.+)", value, re.IGNORECASE)
@@ -128,9 +141,11 @@ def parse_reminder_schedule(value: str, now: datetime) -> tuple[datetime | None,
 
 
 def parse_reminder_time(value: str, now: datetime) -> datetime | None:
-    relative = re.fullmatch(r"in (\d+) (minutes?|hours?)", value, re.IGNORECASE)
+    relative = re.fullmatch(r"in (.+?) (minutes?|hours?)", value, re.IGNORECASE)
     if relative:
-        amount = int(relative.group(1))
+        amount = parse_spoken_number(relative.group(1))
+        if amount is None:
+            return None
         unit = relative.group(2)
         return now + (timedelta(hours=amount) if unit.startswith("hour") else timedelta(minutes=amount))
     absolute = re.fullmatch(r"at (\d{1,2})(?:\s+(\d{2}))?\s*(am|pm)( tomorrow)?", value, re.IGNORECASE)
@@ -147,3 +162,23 @@ def parse_reminder_time(value: str, now: datetime) -> datetime | None:
     elif due_at <= now:
         due_at += timedelta(days=1)
     return due_at
+
+
+def parse_spoken_number(value: str) -> int | None:
+    """Parse a positive digit or common English number phrase up to 99."""
+    if value.isdigit():
+        return int(value)
+    words = value.lower().split()
+    ones = {
+        "a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4,
+        "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+        "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
+        "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17,
+        "eighteen": 18, "nineteen": 19,
+    }
+    tens = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+    if len(words) == 1:
+        return ones.get(words[0], tens.get(words[0]))
+    if len(words) == 2 and words[0] in tens and words[1] in ones and ones[words[1]] < 10:
+        return tens[words[0]] + ones[words[1]]
+    return None

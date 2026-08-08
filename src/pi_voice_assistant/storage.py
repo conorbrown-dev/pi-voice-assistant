@@ -95,6 +95,18 @@ class Store:
         ).fetchall()
         return [self._reminder(row) for row in rows]
 
+    def find_active_reminder(self, text: str) -> Reminder | None:
+        """Find an uncompleted reminder by its spoken name.
+
+        Normalization makes this resilient to sentence punctuation added or
+        omitted by the speech recognizer.
+        """
+        rows = self.connection.execute(
+            "SELECT * FROM reminders WHERE status IN ('pending', 'announced') ORDER BY due_at, id"
+        ).fetchall()
+        row = next((item for item in rows if normalize_phrase(item["text"]) == normalize_phrase(text)), None)
+        return self._reminder(row) if row is not None else None
+
     def requeue_announced_reminders(self) -> None:
         """Make reminders awaiting a response audible again after a service restart."""
         self.connection.execute("UPDATE reminders SET status = 'pending' WHERE status = 'announced'")

@@ -248,8 +248,11 @@ def main() -> None:
         print(f"Assistant: {greeting}")
         speaker.say(greeting)
         while True:
-            for message in assistant.check_reminders():
+            reminder_messages = assistant.check_reminders()
+            for index, message in enumerate(reminder_messages):
                 speaker.say(message)
+                if index == 0 and len(reminder_messages) > 1:
+                    time.sleep(1)
             try:
                 spoken = listener.listen(timeout=1.0 if not args.text else None)
             except queue.Empty:
