@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pi-voice-assistant"
 version = "0.1.0"
-description = "Offline-first todo and reminder voice assistant for Raspberry Pi"
+description = "Orange Castle Assistant: an offline-first family todo and reminder assistant"
 requires-python = ">=3.11"
 
 [project.optional-dependencies]
@@ -15,6 +15,7 @@ piper = ["piper-tts>=1.4"]
 
 [project.scripts]
 pi-assistant = "pi_voice_assistant.cli:main"
+pi-dashboard = "pi_voice_assistant.dashboard:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

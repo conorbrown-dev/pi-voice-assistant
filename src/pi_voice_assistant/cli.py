@@ -145,7 +145,7 @@ def test_microphone(device: int | None, sample_rate: int | None) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Offline Pi voice assistant")
+    parser = argparse.ArgumentParser(description="Orange Castle Assistant")
     parser.add_argument("--database", type=Path, default=Path.home() / ".local/share/pi-voice-assistant/assistant.db")
     parser.add_argument("--text", action="store_true", help="Use terminal input instead of USB microphone")
     parser.add_argument("--stt", choices=("whisper", "vosk"), default="whisper", help="Speech recognition engine (default: whisper)")

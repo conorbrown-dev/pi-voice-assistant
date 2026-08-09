@@ -1,6 +1,6 @@
-# Pi Voice Assistant
+# Orange Castle Assistant
 
-A small, offline-first voice assistant for a Raspberry Pi with a USB microphone and speakers. It manages todos and reminders in a local SQLite database, announces reminders, and lets you complete or delay them by voice.
+A small, offline-first family assistant for a Raspberry Pi with a USB microphone and speakers. It manages todos and reminders in a local SQLite database, announces reminders, and lets you complete or delay them by voice.
 
 ## What it understands
 
@@ -77,6 +77,25 @@ pi-assistant --text
 ```
 
 All state is stored locally at `~/.local/share/pi-voice-assistant/assistant.db` by default. Override it with `--database /path/to/assistant.db`.
+
+## Touchscreen dashboard
+
+The optional React and Tailwind touchscreen dashboard shares the assistant's
+local database. It has Today, Todos, Reminders, Shopping List, and Weather
+views. Todos, shopping items, and reminders can be added or completed from the
+screen; a completed recurring reminder schedules its next occurrence exactly
+as it does through voice. Weather uses Open-Meteo and requires internet access.
+
+```bash
+bash scripts/run-dashboard.sh
+```
+
+Open `http://localhost:8080` on the touchscreen. The dashboard binds only to
+the local device by default. To expose it to trusted devices on your home
+network, start it with `bash scripts/run-dashboard.sh --host 0.0.0.0` and open
+`http://PI_IP:8080`. The first run installs JavaScript dependencies and builds
+the dashboard. For frontend development, run `npm install && npm run dev` in
+`web/`, alongside `pi-dashboard` in another terminal.
 
 ## Run at boot (systemd)
 

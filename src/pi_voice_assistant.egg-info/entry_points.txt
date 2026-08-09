@@ -1,2 +1,3 @@
 [console_scripts]
 pi-assistant = pi_voice_assistant.cli:main
+pi-dashboard = pi_voice_assistant.dashboard:main

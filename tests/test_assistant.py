@@ -30,6 +30,12 @@ class AssistantTests(unittest.TestCase):
         self.assertEqual(self.assistant.handle("archive todo buy milk", self.now), "Confirmed. Todo archived successfully: buy milk.")
         self.assertEqual(self.assistant.handle("list todo", self.now), "You have no active todos.")
 
+    def test_shopping_items_are_stored_and_archived(self) -> None:
+        item = self.store.add_shopping_item("milk", self.now)
+        self.assertEqual([stored.text for stored in self.store.list_shopping_items()], ["milk"])
+        self.assertTrue(self.store.archive_shopping_item(item.id, self.now))
+        self.assertEqual(self.store.list_shopping_items(), [])
+
     def test_do_phrase_adds_a_todo(self) -> None:
         self.assertEqual(self.assistant.handle("do buy milk", self.now), "Confirmed. Todo added successfully: buy milk.")
 

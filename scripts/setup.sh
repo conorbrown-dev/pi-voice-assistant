@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Set up a local development/runtime environment for Pi Voice Assistant.
+# Set up a local development/runtime environment for Orange Castle Assistant.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

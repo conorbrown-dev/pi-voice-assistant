@@ -37,6 +37,12 @@ class Store:
                 recurrence TEXT
             );
             CREATE INDEX IF NOT EXISTS due_reminders ON reminders(status, due_at);
+            CREATE TABLE IF NOT EXISTS shopping_items (
+                id INTEGER PRIMARY KEY,
+                text TEXT NOT NULL COLLATE NOCASE,
+                created_at TEXT NOT NULL,
+                archived_at TEXT
+            );
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
@@ -69,6 +75,27 @@ class Store:
         ).fetchall()
         return [Todo(r["id"], r["text"], self._parse_time(r["created_at"]), None) for r in rows]
 
+    def add_shopping_item(self, text: str, now: datetime) -> Todo:
+        cursor = self.connection.execute(
+            "INSERT INTO shopping_items(text, created_at) VALUES (?, ?)", (text, self._time(now))
+        )
+        self.connection.commit()
+        return Todo(cursor.lastrowid, text, now, None)
+
+    def list_shopping_items(self) -> list[Todo]:
+        rows = self.connection.execute(
+            "SELECT * FROM shopping_items WHERE archived_at IS NULL ORDER BY created_at, id"
+        ).fetchall()
+        return [Todo(row["id"], row["text"], self._parse_time(row["created_at"]), None) for row in rows]
+
+    def archive_shopping_item(self, item_id: int, now: datetime) -> bool:
+        cursor = self.connection.execute(
+            "UPDATE shopping_items SET archived_at = ? WHERE id = ? AND archived_at IS NULL",
+            (self._time(now), item_id),
+        )
+        self.connection.commit()
+        return cursor.rowcount == 1
+
     def archive_todo(self, text: str, now: datetime) -> Todo | None:
         rows = self.connection.execute(
             "SELECT * FROM todos WHERE archived_at IS NULL ORDER BY id"
@@ -79,6 +106,14 @@ class Store:
         self.connection.execute("UPDATE todos SET archived_at = ? WHERE id = ?", (self._time(now), row["id"]))
         self.connection.commit()
         return Todo(row["id"], row["text"], self._parse_time(row["created_at"]), now)
+
+    def archive_todo_id(self, todo_id: int, now: datetime) -> bool:
+        cursor = self.connection.execute(
+            "UPDATE todos SET archived_at = ? WHERE id = ? AND archived_at IS NULL",
+            (self._time(now), todo_id),
+        )
+        self.connection.commit()
+        return cursor.rowcount == 1
 
     def add_reminder(self, text: str, due_at: datetime, now: datetime, recurrence: str | None = None) -> Reminder:
         cursor = self.connection.execute(
@@ -106,6 +141,12 @@ class Store:
         ).fetchall()
         row = next((item for item in rows if normalize_phrase(item["text"]) == normalize_phrase(text)), None)
         return self._reminder(row) if row is not None else None
+
+    def list_active_reminders(self) -> list[Reminder]:
+        rows = self.connection.execute(
+            "SELECT * FROM reminders WHERE status IN ('pending', 'announced') ORDER BY due_at, id"
+        ).fetchall()
+        return [self._reminder(row) for row in rows]
 
     def requeue_announced_reminders(self) -> None:
         """Make reminders awaiting a response audible again after a service restart."""
