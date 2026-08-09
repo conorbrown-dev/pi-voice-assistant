@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-EXECUTABLE="$ROOT/.venv/bin/pi-assistant"
+EXECUTABLE="$ROOT/.venv/bin/orange-castle-assistant"
 WHISPER_BINARY="$ROOT/.tools/whisper.cpp/build/bin/whisper-cli"
 
 if [ ! -x "$EXECUTABLE" ] || [ ! -x "$WHISPER_BINARY" ]; then
@@ -12,7 +12,7 @@ if [ ! -x "$EXECUTABLE" ] || [ ! -x "$WHISPER_BINARY" ]; then
 fi
 
 [ -x "$EXECUTABLE" ] || {
-    printf 'Setup did not create pi-assistant. Review the setup output above.\n' >&2
+    printf 'Setup did not create orange-castle-assistant. Review the setup output above.\n' >&2
     exit 1
 }
 [ -x "$WHISPER_BINARY" ] || {

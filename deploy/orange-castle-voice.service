@@ -1,0 +1,16 @@
+[Unit]
+Description=Orange Castle Assistant voice service
+After=sound.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__SERVICE_USER__
+WorkingDirectory=__INSTALL_ROOT__
+EnvironmentFile=-/etc/orange-castle/voice.env
+ExecStart=__INSTALL_ROOT__/scripts/run.sh --sample-rate 44100
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

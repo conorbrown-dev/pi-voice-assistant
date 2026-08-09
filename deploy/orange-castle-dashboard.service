@@ -1,0 +1,15 @@
+[Unit]
+Description=Orange Castle Assistant touchscreen dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__SERVICE_USER__
+WorkingDirectory=__INSTALL_ROOT__
+ExecStart=__INSTALL_ROOT__/scripts/start-dashboard.sh --host 127.0.0.1 --port 8080
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

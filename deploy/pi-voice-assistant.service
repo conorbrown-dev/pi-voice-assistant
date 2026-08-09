@@ -1,5 +1,5 @@
 [Unit]
-Description=Pi Voice Assistant
+Description=Orange Castle Assistant (legacy service file)
 After=sound.target network.target
 
 [Service]

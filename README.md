@@ -68,12 +68,12 @@ For a todo, say `Computer`, wait for the prompt, then say `add todo`. The assist
 
 Reminders can repeat at an interval with `every hour`, `every 3 hours`, or `every day`, or at one or more daily clock times with `every day at 7 am, 12 pm, and 3 pm`. When a recurring reminder is announced and you say `done`, it schedules its next occurrence.
 
-If a spoken command is not recognized, run `pi-assistant --show-transcript` and use the displayed `Heard:` text to confirm what the speech recognizer decoded. `list command` (singular), `list commands`, and `what are the commands` all open the command list.
+If a spoken command is not recognized, run `orange-castle-assistant --show-transcript` and use the displayed `Heard:` text to confirm what the speech recognizer decoded. `list command` (singular), `list commands`, and `what are the commands` all open the command list.
 
-To use the former eSpeak engine instead, start with `pi-assistant --tts espeak --speech-rate 125 --pitch 40`. Piper voice samples and additional voice names are available from the official project.
+To use the former eSpeak engine instead, start with `orange-castle-assistant --tts espeak --speech-rate 125 --pitch 40`. Piper voice samples and additional voice names are available from the official project.
 
 ```bash
-pi-assistant --text
+orange-castle-assistant --text
 ```
 
 All state is stored locally at `~/.local/share/pi-voice-assistant/assistant.db` by default. Override it with `--database /path/to/assistant.db`.
@@ -95,7 +95,7 @@ the local device by default. To expose it to trusted devices on your home
 network, start it with `bash scripts/run-dashboard.sh --host 0.0.0.0` and open
 `http://PI_IP:8080`. The first run installs JavaScript dependencies and builds
 the dashboard. For frontend development, run `npm install && npm run dev` in
-`web/`, alongside `pi-dashboard` in another terminal.
+`web/`, alongside `orange-castle-dashboard` in another terminal.
 
 ## Run at boot (systemd)
 
@@ -106,6 +106,42 @@ sudo cp deploy/pi-voice-assistant.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now pi-voice-assistant
 ```
+
+## Family-device updates
+
+Orange Castle Assistant can update itself from a trusted Git remote. The Git
+repository is the hosted update source: approved commits pushed to the selected
+branch are picked up by each device every 15 minutes. The updater stops the
+voice and dashboard services, installs the new Python and dashboard
+dependencies, restarts both services, and rolls back to the previous Git
+commit if either service fails to become active.
+
+On a Raspberry Pi, run this once from a checkout with `origin` configured (or
+provide the private/public repository URL explicitly):
+
+```bash
+sudo bash scripts/install-device.sh --branch main
+```
+
+The installer clones into the device user's home directory, builds Whisper and
+the dashboard, installs the services, and enables the update timer. Device
+settings are kept outside the checkout in `/etc/orange-castle/voice.env`; edit
+that file for the audio device or wake word. Update settings are in
+`/etc/orange-castle/updater.conf`. The update history is stored at
+`.orange-castle/previous-update.txt` within the device checkout, including the
+previous (or `initial-install`) and installed commits. Check progress with:
+
+```bash
+systemctl status orange-castle-updater.timer
+sudo systemctl start orange-castle-updater.service
+```
+
+For a private repository, configure non-interactive **read-only** Git access
+for the device user first (for example, a GitHub deploy key). The updater never
+needs permission to push changes.
+
+The dashboard remains local-only by default. Change its unit deliberately if
+you want it reachable from trusted devices on the home network.
 
 ## Development
 

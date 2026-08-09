@@ -1,0 +1,8 @@
+[Unit]
+Description=Orange Castle Assistant Git updater
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=__INSTALL_ROOT__/scripts/update-device.sh

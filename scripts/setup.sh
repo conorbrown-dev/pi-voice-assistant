@@ -7,6 +7,17 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 WHISPER_DIR="$ROOT/.tools/whisper.cpp"
 MODEL_DIR="$ROOT/models"
 MODEL_PATH="$MODEL_DIR/ggml-base.en.bin"
+SKIP_SYSTEM_DEPS=false
+SYSTEM_DEPS_ONLY=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-system-deps) SKIP_SYSTEM_DEPS=true ;;
+        --system-deps-only) SYSTEM_DEPS_ONLY=true ;;
+        *) printf 'setup: unknown option: %s\n' "$1" >&2; exit 1 ;;
+    esac
+    shift
+done
 
 fail() {
     printf 'setup: %s\n' "$*" >&2
@@ -26,7 +37,7 @@ install_system_dependencies() {
     case "$(uname -s)" in
         Darwin)
             command -v brew >/dev/null || fail "Install Homebrew first: https://brew.sh"
-            brew install python git portaudio cmake
+            brew install python git portaudio cmake node
             ;;
         Linux)
             [ -r /etc/os-release ] || fail "Unsupported Linux distribution. Install Python 3.11+, PortAudio, ALSA tools, CMake, a C++ compiler, make, and Git."
@@ -34,13 +45,13 @@ install_system_dependencies() {
             case "${ID:-}" in
                 debian|ubuntu|raspbian)
                     as_root apt-get update
-                    as_root apt-get install -y python3 python3-venv portaudio19-dev alsa-utils cmake build-essential git curl
+                    as_root apt-get install -y python3 python3-venv portaudio19-dev alsa-utils cmake build-essential git curl nodejs npm
                     ;;
                 fedora)
-                    as_root dnf install -y python3 portaudio-devel alsa-utils cmake gcc-c++ make git curl
+                    as_root dnf install -y python3 portaudio-devel alsa-utils cmake gcc-c++ make git curl nodejs npm
                     ;;
                 arch|manjaro)
-                    as_root pacman -Sy --needed python portaudio alsa-utils cmake base-devel git curl
+                    as_root pacman -Sy --needed python portaudio alsa-utils cmake base-devel git curl nodejs npm
                     ;;
                 *)
                     fail "Unsupported Linux distribution (${ID:-unknown}). Install Python 3.11+, PortAudio, ALSA tools, CMake, a C++ compiler, make, and Git."
@@ -51,7 +62,12 @@ install_system_dependencies() {
     esac
 }
 
-install_system_dependencies
+if [[ "$SKIP_SYSTEM_DEPS" != true ]]; then
+    install_system_dependencies
+fi
+if [[ "$SYSTEM_DEPS_ONLY" == true ]]; then
+    exit 0
+fi
 command -v "$PYTHON_BIN" >/dev/null || fail "Python was not found: $PYTHON_BIN"
 if ! "$PYTHON_BIN" -c 'import sys; raise SystemExit(sys.version_info < (3, 11))'; then
     fail "Python 3.11 or newer is required."
